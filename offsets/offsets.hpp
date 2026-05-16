@@ -9,7 +9,6 @@
 // Generated: 2026-05-16
 // Method: Dynamic memory scan + PE export parse + IAT resolution + 
 //         .cldb write tracing + register-indirect hunt + EXE region scan
-// Confidence: 13/13 .cldb accesses confirmed, 4 DLL exports confirmed
 //
 // Module bases at runtime (ASLR — use sigscans, not hardcoded):
 //   LockDownBrowser.dll  varies → sigscan: "CLDBDo" string in .rdata
