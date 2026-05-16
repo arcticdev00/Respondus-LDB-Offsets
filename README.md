@@ -9,15 +9,15 @@ Latest offsets & patterns, updated with every version.
 
 ## What's Inside
 
-| Target | Type | Confidence |
-| :--- | :--- | :--- |
-| `.cldb` flag setters (LOCKDOWN/PROCTORING/EXIT) | Static RVA + Sigscan | accesses confirmed |
-| DLL exports (4 functions) | Static RVA + Sigscan | PE export directory |
-| SetWindowsHookEx call sites (21 total) | Static RVA + Sigscan | IAT resolved |
-| Keyboard hook callback procedure | Static RVA | push-argument traced |
-| Process blacklist (3020 entries) | Heap-allocated, UTF-16LE strings | Runtime-only |
-| Window class blacklist | Heap-allocated | Runtime-only |
-| Exam URL triggers | Obfuscated at rest | Runtime construction |
+| Target | Type |
+| :--- | :--- |
+| `.cldb` flag setters (LOCKDOWN/PROCTORING/EXIT) | Static RVA + Sigscan |
+| DLL exports (4 functions) | Static RVA + Sigscan |
+| SetWindowsHookEx call sites (21 total) | Static RVA + Sigscan |
+| Keyboard hook callback procedure | Static RVA |
+| Process blacklist (3020 entries) | Heap-allocated, UTF-16LE strings |
+| Window class blacklist | Heap-allocated |
+| Exam URL triggers | Obfuscated at rest |
 
 All static offsets come with byte-pattern sigscans. If a new version shifts the RVAs, the patterns still work:
 
