@@ -11,10 +11,10 @@ Latest offsets & patterns, updated with every version.
 
 | Target | Type | Confidence |
 | :--- | :--- | :--- |
-| `.cldb` flag setters (LOCKDOWN/PROCTORING/EXIT) | Static RVA + Sigscan | 100% — 13/13 accesses confirmed |
-| DLL exports (4 functions) | Static RVA + Sigscan | 100% — PE export directory |
+| `.cldb` flag setters (LOCKDOWN/PROCTORING/EXIT) | Static RVA + Sigscan | 13/13 accesses confirmed |
+| DLL exports (4 functions) | Static RVA + Sigscan | PE export directory |
 | SetWindowsHookEx call sites (21 total) | Static RVA + Sigscan | 95% — IAT resolved |
-| Keyboard hook callback procedure | Static RVA | 95% — push-argument traced |
+| Keyboard hook callback procedure | Static RVA | push-argument traced |
 | Process blacklist (3020 entries) | Heap-allocated, UTF-16LE strings | Runtime-only |
 | Window class blacklist | Heap-allocated | Runtime-only |
 | Exam URL triggers | Obfuscated at rest | Runtime construction |
