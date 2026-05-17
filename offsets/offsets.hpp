@@ -134,13 +134,13 @@ namespace respondus_offsets {
             // LEA EDI,[EBP-0x24]; PUSH EBX; CPUID; MOV ESI,EBX; POP EBX; NOP
             constexpr uint32_t FUNC_RVA = 0x23E7;
 
-            // Unique byte pattern (16 bytes) — all fixed, no wildcards
+            // Unique byte pattern (16 bytes) 
             constexpr uint8_t SIG16[] = {
                 0x8D, 0x7D, 0xDC, 0x53, 0x0F, 0xA2, 0x8B, 0xF3,
                 0x5B, 0x90, 0x89, 0x07, 0x89, 0x77, 0x04, 0x89
             };
 
-            // Extended pattern (32 bytes) for higher confidence
+            // Extended pattern (32 bytes)
             constexpr uint8_t SIG32[] = {
                 0x8D, 0x7D, 0xDC, 0x53, 0x0F, 0xA2, 0x8B, 0xF3,
                 0x5B, 0x90, 0x89, 0x07, 0x89, 0x77, 0x04, 0x89,
@@ -148,7 +148,7 @@ namespace respondus_offsets {
                 0x45, 0xDC, 0x8B, 0x7D, 0xE0, 0x89, 0x45, 0xF4
             };
 
-            // Individual CPUID instruction locations (for targeted patching)
+            // Individual CPUID instruction locations 
             constexpr uint32_t CPUID_VENDOR = 0x23EB;  // CPUID 0x40000000 — vendor string
             constexpr uint32_t CPUID_BRAND = 0x2427;  // CPUID 0x40000001 — brand/version
             constexpr uint32_t CPUID_FEATURE = 0x249F;  // CPUID 0x40000002 — features
@@ -161,7 +161,7 @@ namespace respondus_offsets {
         // ====================================================================
         // Anti-Debug — ICEBP instructions (opcode 0xF1)
         // Scattered throughout LDB.dll .text as debugger traps
-        // Also 17,000+ instances in EXE (likely obfuscation/packer layer)
+        // Also 17,000+ instances in EXE
         // ====================================================================
         namespace anti_debug {
 
