@@ -1,6 +1,7 @@
 # CLDBDoSomeOtherStuff (+0x1000) — THE MAIN LOCKDOWN ENGINE
 
 **Flow:**
+```
 1. `MOV ECX, [LOCKDOWN]` ; Read current state
 2. If set: `PUSH` it, `CALL [IAT]` ; Notify handler
 3. `MOV [LOCKDOWN], 0` ; CLEAR it
@@ -16,7 +17,7 @@
 8. `MOV [LOCKDOWN], ECX` ; SET LOCKDOWN from result
 9. If result != 0: `OR [ESI], 0x80000` ; Set output flag
 10. Return 1 if LOCKDOWN ended up set
-
+```
 ---
 
 # CLDBDoSomeOtherStuffs (+0x10B0) — STATUS REPORTER
