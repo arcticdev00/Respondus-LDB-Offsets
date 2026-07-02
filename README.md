@@ -23,15 +23,6 @@ Latest offsets, IOCTL protocol, RLDB commands, and analysis scripts. Updated wit
 | `ioctl.md` | Driver IOCTL communication protocol specification |
 | `rldb_commands.md` | RLDB URL command reference (25+ commands documented) |
 | `quiz_active.md` | Quiz active flag analysis (user-mode and kernel-mode) |
-
-### Analysis Scripts (`analysis/`)
-
-| Script | Language | Purpose |
-| :--- | :--- | :--- |
-| `driver_analyzer.ps1` | PowerShell | Driver status, registry, filter manager, device handle, string analysis |
-| `offset_scanner.py` | Python | PE scanning for .cldb accesses, exports, IAT calls, ICEBP, CPUID, quiz_active candidates, RLDB strings |
-| `rldb_cmd_monitor.ps1` | PowerShell | Real-time monitoring of RLDB process, driver, hooks, registry |
-
 ---
 
 ## Target: LockDownBrowser.dll (LDB.dll)
