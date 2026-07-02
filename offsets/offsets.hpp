@@ -74,7 +74,7 @@ namespace respondus_offsets {
                 constexpr uint32_t READ_EXIT_2 = 0x12A3;  // A1 [cldb+0x08]
             }
 
-            // Version-proof sigscan method:
+            // sigscan method:
             // 1. Parse LDB.dll PE -> find .cldb section VirtualAddress
             // 2. cldb_runtime = ldb_base + VirtualAddress
             // 3. Scan .text for: 89 0D | 89 3D | 89 05 | C7 05 | A1
@@ -87,7 +87,7 @@ namespace respondus_offsets {
         // Quiz Active Flag (adjacent to .cldb section)
         // Set via rldbqn=1 command. Controls whether all monitoring is active.
         // v2.1.3.09: ~LDB+0x17010 (in .data, after .cldb)
-        // v2.1.5.00: ~LDB+0x???? (verify dynamically)
+        // v2.1.5.00: ~LDB+0x???? 
         // ====================================================================
         namespace quiz_active {
             constexpr uint32_t RVA_OFFSET_FROM_CLDB = 0x10;  // 16 bytes after .cldb start
