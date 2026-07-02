@@ -61,7 +61,7 @@ Latest offsets, IOCTL protocol, RLDB commands, and analysis scripts. Updated wit
 
 ---
 
-## Target: LockDownService215.sys (Kernel Driver)
+## Target: LockDownService215.sys (Tuff lil ApriorIT driver)
 
 | Target | Type |
 | :--- | :--- |
@@ -71,8 +71,7 @@ Latest offsets, IOCTL protocol, RLDB commands, and analysis scripts. Updated wit
 | **Crypto subsystem** | BCrypt AES-256-CBC + RSA-2048 |
 | **Process/thread/image callbacks** | PsSetCreateProcessNotifyRoutineEx, etc. |
 | **Code integrity** | CiValidateFileObject signature validation |
-| **Overlay detection** | DwmImageResolver / BrowserImageResolver |
-| **KDMapper detection** | Limited — no specific kdmapper defense |
+| **KDMapper detection** | Limited, heard people say "kdmapper is dtc"; it isnt |
 
 See `ioctl.md` for complete protocol documentation.
 
