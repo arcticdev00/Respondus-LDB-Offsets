@@ -5,8 +5,8 @@
 
 // ============================================================================
 // Respondus LockDown Browser — Offsets & Signature Patterns
-// Version: 2.1.3.09 (CLDB 2.1.5.0.0; Chrome/129.0.0.0)
-// Generated: 2026-07-02
+// Version: 2.1.6.00 (CLDB 2.1.6.00; Chrome/150.0.0.0)
+// Generated: 2026-09-16
 // From Arctic 
 // ============================================================================
 namespace process_blacklist {
