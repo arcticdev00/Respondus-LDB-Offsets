@@ -1,8 +1,8 @@
 # LDB.dll Export Function Map
 
-**Version:** v2.1.3.09 (LDB 32-bit) / v2.1.5.00 (LDB x64)
+**Version:** v2.1.6.00 (LDB x64)
 **Module:** LockDownBrowser.dll (LDB.dll)
-**Generated:** 2026-07-02
+**Generated:** 2026-09-16
 
 ---
 
@@ -19,16 +19,55 @@ All four functions share:
 
 ---
 
-## Export Table Comparison
+## Export Table
 
-| Export | v2.1.3.09 RVA | v2.1.5.00 RVA | Ordinal | Purpose |
-|--------|---------------|---------------|---------|---------|
-| `CLDBDoSomeOtherStuff` | `+0x1000` | `+0x1000` | 0 | Main lockdown engine |
-| `CLDBDoSomeOtherStuffs` | `+0x10B0` | `+0x10E0` | 1 | Status reporter (bitmask) |
-| `CLDBDoSomeStuff` | `+0x10E0` | `+0x1110` | 2 | URL/navigation handler |
-| `CLDBDoYetMoreStuff` | `+0x12A0` | `+0x1330` | 3 | EXIT password handler |
+| Export | RVA | Ordinal | Purpose |
+|--------|-----|---------|---------|
+| `CLDBDoSomeOtherStuff` | `+0x1000` | 1 | Main lockdown engine |
+| `CLDBDoSomeOtherStuffs` | `+0x10E0` | 2 | Status reporter (bitmask) |
+| `CLDBDoSomeStuff` | `+0x1110` | 3 | URL/navigation handler |
+| `CLDBDoYetMoreStuff` | `+0x1330` | 4 | EXIT password handler |
 
-**Note:** v2.1.5.00 is x64 (PE32+) while v2.1.3.09 is 32-bit. The RVAs shifted between versions for all exports except `CLDBDoSomeOtherStuff`.
+Mangled names as they appear in the export table:
+
+```
+?CLDBDoSomeOtherStuff@@YAHPEAH@Z     rva 0x1000  ord 1
+?CLDBDoSomeOtherStuffs@@YAHPEAH@Z    rva 0x10e0  ord 2
+?CLDBDoSomeStuff@@YAHPEAH@Z          rva 0x1110  ord 3
+?CLDBDoYetMoreStuff@@YAHPEAH@Z       rva 0x1330  ord 4
+```
+
+---
+
+## The `.cldb` Section
+
+```
+section name : .cldb
+RVA          : 0x1C000
+VA           : 0x18001C000     (image base 0x180000000)
+virtual size : 0x18  (24)
+characteristics : 0xD0000040 = CNT_INITIALIZED_DATA | MEM_SHARED | MEM_READ | MEM_WRITE
+```
+
+`MEM_SHARED` confirms it is the cross-process flag block the exports are built around. Contents in the shipped file — all three flags set:
+
+```
++0x00 : 01 00 00 00 00 00 00 00      -> qword 1
++0x08 : 01 00 00 00 00 00 00 00      -> qword 1
++0x10 : 01 00 00 00 00 00 00 00      -> qword 1
+```
+
+### Verified x64 Access Sites (32 total)
+
+Resolved by scanning `.text` for RIP-relative operands landing in `[0x18001C000, 0x18001C018)`. RVAs (RVA = VA − 0x180000000):
+
+| slot | RVAs |
+| :--- | :--- |
+| `+0x00` (LOCKDOWN) | `0x100A` `0x1026` `0x10AB` `0x10BD` `0x10E7` `0x11C8` `0x122F` `0x126B` `0x12C3` `0x12D0` `0x1451` `0x16BC` `0x178C` `0x18A8` `0x19B0` |
+| `+0x08` (PROCTORING) | `0x1100` `0x1201` `0x1239` `0x12F0` `0x1302` `0x133F` `0x1351` `0x1386` `0x1A1A` `0x1AAB` `0x1B56` |
+| `+0x10` (EXIT) | `0x10F1` `0x11DA` `0x1248` `0x12D7` `0x12E9` `0x1B92` |
+
+> **Note:** the x64 build touches all three slots with 64-bit `mov`/`cmp` only. The slot *names* are carried over from the 32-bit build's analysis; the offsets and widths are verified for x64.
 
 ---
 
@@ -37,54 +76,30 @@ All four functions share:
 **Purpose:** The primary lockdown activation function. Reads the current state, processes condition flags, calls into Windows APIs with action strings, and sets/clears the LOCKDOWN flag based on results.
 
 **Flow:**
-1. `MOV ECX, [LOCKDOWN]` — Read current LOCKDOWN flag
-2. If set: `PUSH ECX; CALL [IAT]` — Notify handler of current state
-3. `MOV [LOCKDOWN], 0` — Clear LOCKDOWN to 0
-4. Load argument from `[EBP+8]` — Get input pointer from caller (EXE)
-5. Test condition flags in sequence against the input:
-   - `0x800000` (EXAM_START_1)
-   - `0x400000` (EXAM_START_2)
-   - `0x20000` (PROCTORING_MODE)
-   - `0x10000` (EXIT_REQUEST)
-   - `0x4000` (URL_EVENT)
-6. Pick action string based on which flag matched:
-   - Option 1/2 → `LDB+0x15D0`
-   - Option 3 → `LDB+0x1670`
-   - Option 4 → `LDB+0x13D0`
-   - Option 5 → `LDB+0x1300`
-   - Default → `LDB+0x1760`
+1. Read current LOCKDOWN flag (`0x100A`)
+2. If set: notify handler of current state
+3. Clear LOCKDOWN to 0 (`0x1026`, `0x10AB` — writes)
+4. Load argument from caller (EXE)
+5. Test condition flags in sequence against the input (see table below)
+6. Pick action string based on which flag matched
 7. `PUSH 13; CALL [IAT]` — Call Windows API with action string + parameter
-8. `MOV [LOCKDOWN], ECX` — Set LOCKDOWN from API return value
-9. If result != 0: `OR [ESI], 0x80000` — Set output flag in caller's struct
+8. Set LOCKDOWN from API return value
+9. If result != 0: set output flag `0x80000` in caller's struct
 10. Return 1 if LOCKDOWN ended up set, 0 otherwise
 
-**.cldb accesses:**
-- `+0x1003`: READ LOCKDOWN
-- `+0x1016`: WRITE LOCKDOWN ← ECX (clear to 0)
-- `+0x1083`: WRITE LOCKDOWN ← ECX (set from IAT result)
-- `+0x1093`: READ LOCKDOWN
-- `+0x11D9`: WRITE EXIT ← ECX
-
-**IAT calls:** 2
+**Verified x64 access order:** read `+0x00` (`0x100A`), write `+0x00` (`0x1026`, `0x10AB`), read `+0x00` (`0x10BD`), then the three-slot test at `0x10E7`/`0x10F1`/`0x1100`.
 
 ---
 
-## CLDBDoSomeOtherStuffs — Status Reporter
-
-### v2.1.3.09 (+0x10B0)
+## CLDBDoSomeOtherStuffs (+0x10E0) — Status Reporter
 
 **Purpose:** Returns a bitmask indicating which lockdown flags are currently active. Read-only — no side effects on `.cldb`.
 
 **Flow:**
-1. `XOR EAX, EAX` — Clear return value
-2. `CMP [LOCKDOWN], 0x400; CMOVNZ EAX, 0x400` — Set bit if LOCKDOWN active
-3. `CMP [PROCTORING], 0; JZ skip; OR EAX, 0x1000` — Set bit if PROCTORING active
-4. `CMP [EXIT], 0; JZ skip; OR EAX, 0x800` — Set bit if EXIT active
-5. `RET` — Return bitmask in EAX
-
-### v2.1.5.00 (+0x10E0)
-
-The function shifted to `+0x10E0` in x64 build but maintains identical return bitmask semantics.
+1. Test slot 1 (`0x10E7`) — set bit if LOCKDOWN active
+2. Test slot 3 (`0x10F1`) — set bit if EXIT active
+3. Test slot 2 (`0x1100`) — set bit if PROCTORING active
+4. Return bitmask in EAX
 
 **Return bitmask:**
 
@@ -94,73 +109,39 @@ The function shifted to `+0x10E0` in x64 build but maintains identical return bi
 | 11 | `0x800` | EXIT active |
 | 12 | `0x1000` | PROCTORING active |
 
-**Note:** This function shares code with `CLDBDoSomeStuff`. The export entry at `+0x10B0` (v2.1.3.09) / `+0x10E0` (v2.1.5.00) falls through into the same function body. They are the same function with different entry offsets.
-
 ---
 
-## CLDBDoSomeStuff — URL/Navigation Handler
+## CLDBDoSomeStuff (+0x1110) — URL/Navigation Handler
 
-### v2.1.3.09 (+0x10E0) / v2.1.5.00 (+0x1110)
-
-**Purpose:** Processes browser navigation events and URL checks. This is the function triggered when the browser navigates to an LMS exam URL (e.g., `processattempt.php`). Contains the full flag clearing sequence and keyboard hook installation.
+**Purpose:** Processes browser navigation events and URL checks. This is the function triggered when the browser navigates to an LMS exam URL (e.g., `processattempt.php`). Contains the full flag clearing sequence and hook installation.
 
 **Flow:**
-1. `PUSH EBP; MOV EBP, ESP; SUB ESP, 32` — Function prologue with 32 bytes of locals
-2. `MOV ECX, [ECX]; XOR EDI, EDI` — Load input, clear EDI
-3. Complex bit manipulation on input value (shifts, masks)
-4. Same condition flag test sequence as `CLDBDoSomeOtherStuff`:
-   - Tests `0x800000`, `0x400000`, `0x20000`, `0x10000`, `0x4000`
-   - Pushes same action strings
-5. `PUSH 13; CALL [IAT]` — Process action
-6. `CMP [PROCTORING], 0; JZ skip` — Check proctoring
-7. `PUSH 0; PUSH [global]; MOV [...]` — Additional IAT calls
-8. **Full flag clearing sequence:**
-   - `MOV [LOCKDOWN], EDI` — Clear LOCKDOWN
-   - `MOV [PROCTORING], EDI` — Clear PROCTORING
-   - `MOV [EXIT], EDI` — Clear EXIT
-9. `MOV ESP, EBP; POP EBP; RET` — Clean return
+1. Load input, run the condition flag test sequence (same as `CLDBDoSomeOtherStuff`)
+2. `PUSH 13; CALL [IAT]` — Process action
+3. Check PROCTORING slot
+4. **Full flag clearing sequence:** clear LOCKDOWN, PROCTORING and EXIT slots
+5. Install hooks
 
-**.cldb accesses (v2.1.3.09):**
-- `+0x11D9`: WRITE EXIT ← ECX
-- `+0x120F`: READ LOCKDOWN
-- `+0x1256`: READ LOCKDOWN
-- `+0x125E`: WRITE LOCKDOWN ← EDI (clear)
-- `+0x1264`: READ PROCTORING
-- `+0x1270`: WRITE PROCTORING ← EDI (clear)
-- `+0x1276`: READ EXIT
-- `+0x1282`: WRITE EXIT ← EDI (clear)
-
-**IAT calls:** 2 (including SetWindowsHookEx at `+0x1250`)
-
-**Key discovery:** `CLDBDoSomeOtherStuffs` and `CLDBDoSomeStuff` share the same function body. The export table lists them at different RVAs but they execute identical code.
+**Verified x64:** writes slot 1 at `0x11C8` and `0x12D0`, slot 3 at `0x11DA` and `0x12E9`, slot 2 at `0x1201`.
 
 ---
 
-## CLDBDoYetMoreStuff — EXIT Password Handler
-
-### v2.1.3.09 (+0x12A0) / v2.1.5.00 (+0x1330)
+## CLDBDoYetMoreStuff (+0x1330) — EXIT Password Handler
 
 **Purpose:** Handles the EXIT password requirement. Reads the EXIT flag, notifies handlers if set, clears it, then optionally re-sets it based on IAT call results.
 
 **Flow:**
-1. `PUSH EBP; MOV EBP, ESP`
-2. `MOV EAX, [EXIT]` — Read EXIT flag
-3. If set: `PUSH EAX; CALL [IAT]` — Notify handler
-4. `MOV DWORD [EXIT], 0` — Clear EXIT to 0
-5. Load argument, test condition flag
-6. Pick string: `LDB+0x19A0` or `LDB+0x1840`
-7. `PUSH 7; CALL [IAT]` — Process exit request
-8. `MOV ECX, EAX` — Save IAT return
-9. `XOR EAX, EAX` — Clear return value
-10. `TEST ECX, ECX`
-11. `MOV [EXIT], ECX` — Set EXIT from IAT result
-12. `SETNZ AL` — Return 1 if EXIT ended up set, 0 otherwise
-13. `POP EBP; RET`
+1. Read EXIT flag
+2. If set: notify handler
+3. Clear EXIT to 0
+4. Load argument, test condition flag
+5. `PUSH 7; CALL [IAT]` — Process exit request
+6. Set EXIT from IAT result
+7. Return 1 if EXIT ended up set, 0 otherwise
 
-**.cldb accesses:**
-- `+0x12A3`: READ EXIT
-- `+0x12B3`: CLEAR EXIT (MOV DWORD [EXIT], 0)
-- `+0x12EA`: WRITE EXIT ← ECX (set from IAT result)
+**Verified x64:** writes slot 2 at `0x1351` and `0x1386`, slot 1 at `0x1451`.
+
+> **Note:** the purpose is not fully settled — "EXIT password handler" (from the slot mapping) vs "`WH_MOUSE` handler" are both in circulation. Neither has been read out of the x64 code end-to-end.
 
 ---
 
@@ -186,6 +167,8 @@ All four exports follow the same pattern:
 2. **Call** Windows/system APIs via IAT with action strings
 3. **Write** results back to `.cldb`
 
-The exports can be patched at their entry points (`31 C0 C3` = XOR EAX,EAX; RET) to return 0 without executing any lockdown logic. Alternatively, the individual `.cldb` flag setters can be NOPped to prevent specific flags from being written.
+The exports can be patched at their entry points (`31 C0 C3` = XOR EAX,EAX; RET) to return 0 without executing any lockdown logic. Alternatively, the RIP-relative `.cldb` writes listed above can be NOPped to prevent specific flags from being written. Bluntest option: `.cldb` is `MEM_SHARED`, so zeroing all 24 bytes at runtime clears all three flags at once — which is exactly what the flag-readers are there to notice.
 
 For **RLDB command handling**, see `rldb_commands.md`. The condition flags tested in these exports map directly to RLDB command types.
+
+> **Note:** the HookDLL's notable behavioural trait in 2.1.6.0.0 is unrelated to `.cldb` — the global `VK_F12` block (`cmp ecx, 0x7b`) is absent from the three keyboard hook procedures at `0x13a0`, `0x162c` and `0x18e0`. See `../README.md`.
