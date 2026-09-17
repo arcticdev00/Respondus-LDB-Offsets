@@ -5,8 +5,8 @@
 
 // ============================================================================
 // Respondus LockDown Browser — Offsets & Signature Patterns
-// Version: 2.1.5.00 (CLDB 2.1.5.00; Chrome/142.0.7444.135)
-// Generated: 2026-07-02
+// Version: 2.1.6.00 (CLDB 2.1.6.00; Chrome/150.0.0.0)
+// Generated: 2026-09-16
 // Includes: .cldb flags, exports, hooks, VM detection, anti-debug,
 //           driver IOCTL, quiz_active flag, RLDB command codes
 // ============================================================================
@@ -15,99 +15,97 @@ namespace respondus_offsets {
 
     // ========================================================================
     // Module: LockDownBrowser.dll (LDB.dll)
-    // 32-bit DLL (v2.1.3.09) or x64 (v2.1.5.00), loaded by LockDownBrowser.exe
+    // x64 DLL (v2.1.6.00), loaded by LockDownBrowser.exe
     // ========================================================================
     namespace lockdownbrowser_dll {
 
         // ====================================================================
         // .cldb Shared Memory Section (SHARED|WRITE|READ)
-        // 12 bytes of runtime flags. Write 12 zero bytes to disable all.
+        // 24 bytes of runtime flags. Write 24 zero bytes to disable all.
         // Find dynamically by walking PE sections for ".cldb" name.
         // ====================================================================
         namespace cldb {
 
             // --- Static offsets (relative to LDB.dll base) ---
-            // v2.1.3.09: RVA_SECTION = 0x17000
-            // v2.1.5.00: RVA_SECTION = (verify dynamically)
-            constexpr uint32_t RVA_SECTION = 0x17000;
-            constexpr uint32_t SIZE = 12;
+            // v2.1.6.00: RVA_SECTION = 0x1C000
+            constexpr uint32_t RVA_SECTION = 0x1C000;
+            constexpr uint32_t SIZE = 0x18;
 
-            // Flag byte offsets within .cldb section
+            // Flag qword offsets within .cldb section
+            // (x64 build touches all three slots with 64-bit mov/cmp only)
             enum class FlagOffset : uint32_t {
-                LOCKDOWN_ENABLED = 0x00,  // keyboard hooks, navigation block
-                PROCTORING_ENABLED = 0x04,  // webcam/microphone recording
-                EXIT_PASSWORD_ENABLED = 0x08,  // require password to exit
+                LOCKDOWN_ENABLED = 0x00,       // keyboard hooks, navigation block
+                PROCTORING_ENABLED = 0x08,     // webcam/microphone recording
+                EXIT_PASSWORD_ENABLED = 0x10,  // require password to exit
             };
 
-            // Runtime .cldb flag structure (12 bytes)
+            // Runtime .cldb flag structure (24 bytes)
             struct Flags {
-                uint32_t lockdown;      // +0x00 — non-zero = lockdown active
-                uint32_t proctoring;    // +0x04 — non-zero = proctoring active
-                uint32_t exit_password; // +0x08 — non-zero = exit password required
+                uint64_t lockdown;      // +0x00 — non-zero = lockdown active
+                uint64_t proctoring;    // +0x08 — non-zero = proctoring active
+                uint64_t exit_password; // +0x10 — non-zero = exit password required
             };
 
-            // .cldb Flag Setters (NOP these to permanently disable lockdown)
-            namespace setters_lockdown {
-                constexpr uint32_t SETTER_ECX_1 = 0x1016;  // 89 0D [cldb+0x00], ECX
-                constexpr uint32_t SETTER_ECX_2 = 0x1083;  // 89 0D [cldb+0x00], ECX
-                constexpr uint32_t SETTER_EDI = 0x125E;  // 89 3D [cldb+0x00], EDI
-                // Patch: 6 bytes of 0x90 (NOP)
-            }
-
-            namespace setters_proctoring {
-                constexpr uint32_t SETTER_EDI = 0x1270;  // 89 3D [cldb+0x04], EDI
-            }
-
-            namespace setters_exit {
-                constexpr uint32_t SETTER_ECX_1 = 0x11D9;  // 89 0D [cldb+0x08], ECX
-                constexpr uint32_t SETTER_EDI = 0x1282;  // 89 3D [cldb+0x08], EDI
-                constexpr uint32_t SETTER_ECX_2 = 0x12EA;  // 89 0D [cldb+0x08], ECX
-                constexpr uint32_t CLEARER = 0x12B3;  // C7 05 [cldb+0x08], 0x00000000
-            }
-
-            // .cldb flag readers (informational)
-            namespace readers {
-                constexpr uint32_t READ_LOCKDOWN_1 = 0x120F;  // A1 [cldb+0x00]
-                constexpr uint32_t READ_LOCKDOWN_2 = 0x1256;  // A1 [cldb+0x00]
-                constexpr uint32_t READ_PROCTORING = 0x1264;  // A1 [cldb+0x04]
-                constexpr uint32_t READ_EXIT_1 = 0x1276;  // A1 [cldb+0x08]
-                constexpr uint32_t READ_EXIT_2 = 0x12A3;  // A1 [cldb+0x08]
+            // Verified x64 access sites (2.1.6.0.0)
+            // Found by scanning .text for RIP-relative operands landing in
+            // [0x18001C000, 0x18001C018). 32 sites, all 64-bit.
+            namespace access_sites_x64 {
+                // slot +0x00
+                constexpr uint32_t SLOT00[] = {
+                    0x100A, 0x1026, 0x10AB, 0x10BD, 0x10E7, 0x11C8, 0x122F, 0x126B,
+                    0x12C3, 0x12D0, 0x1451, 0x16BC, 0x178C, 0x18A8, 0x19B0,
+                };
+                // slot +0x08
+                constexpr uint32_t SLOT08[] = {
+                    0x1100, 0x1201, 0x1239, 0x12F0, 0x1302, 0x133F, 0x1351, 0x1386,
+                    0x1A1A, 0x1AAB, 0x1B56,
+                };
+                // slot +0x10
+                constexpr uint32_t SLOT10[] = {
+                    0x10F1, 0x11DA, 0x1248, 0x12D7, 0x12E9, 0x1B92,
+                };
+                constexpr uint32_t SITE_COUNT = 32;
             }
 
             // sigscan method:
             // 1. Parse LDB.dll PE -> find .cldb section VirtualAddress
             // 2. cldb_runtime = ldb_base + VirtualAddress
-            // 3. Scan .text for: 89 0D | 89 3D | 89 05 | C7 05 | A1
-            // 4. For each: resolve disp32 -> if target in [cldb_runtime, cldb_runtime+12]
-            //    -> it's a .cldb access. opcode tells you read vs write.
+            // 3. Scan .text for RIP-relative qword forms: 48 89 / 48 8B / 48 83 3D / 48 39
+            // 4. For each: resolve disp32 (target = insn_addr + insn_len + disp)
+            //    -> if target in [cldb_runtime, cldb_runtime+0x18] it's a .cldb access.
+            //       offset from section start tells you the slot; opcode tells you read vs write.
         } // namespace cldb
 
 
         // ====================================================================
-        // Quiz Active Flag (adjacent to .cldb section)
+        // Quiz Active Flag
         // Set via rldbqn=1 command. Controls whether all monitoring is active.
-        // v2.1.3.09: ~LDB+0x17010 (in .data, after .cldb)
-        // v2.1.5.00: ~LDB+0x???? 
+        // v2.1.6.00: EXE-side candidate at 0x140CAC708 (.data, RVA 0xCAC708)
         // ====================================================================
         namespace quiz_active {
-            constexpr uint32_t RVA_OFFSET_FROM_CLDB = 0x10;  // 16 bytes after .cldb start
+            // "rldbqn=1" is a string in LockDownBrowser.exe (VA 0x140B1CAE0),
+            // handled by an EXE function — the HookDLL never sees it.
+            // The EXE-side handler is 0x14006BCA0-0x14006E360
+            // (it references BOTH "rldbqn=1" and "rldbxb=1").
+            constexpr uint32_t EXE_HANDLER_START = 0x14006BCA0;
+            constexpr uint32_t EXE_HANDLER_END   = 0x14006E360;
 
-            enum class State : uint32_t {
-                INACTIVE   = 0x00000000,  // No quiz, monitoring inactive
-                ACTIVE     = 0x00000001,  // Quiz in progress
-                PROCTORING = 0x00000002,  // Quiz with webcam proctoring
-                LOCKED     = 0xFFFFFFFF,  // Exit password required
-            };
+            // Strong candidate (not yet confirmed at runtime). In the handler:
+            //   14006C360  cmp dword ptr [0x140CAC708], 0   ; already active?
+            //   14006C575  mov dword ptr [0x140CAC708], 1   ; set active (C7 05 form)
+            // and it is read from a second function (cmp at 0x1401932EB).
+            constexpr uint32_t EXE_FLAG_CANDIDATE_VA  = 0x140CAC708;
+            constexpr uint32_t EXE_FLAG_CANDIDATE_RVA = 0xCAC708;
 
             // Sigscan pattern: C7 05 [disp32] 01 00 00 00  (MOV DWORD [addr], 1)
             // Sigscan pattern: C7 05 [disp32] 00 00 00 00  (MOV DWORD [addr], 0)
-            // Resolve disp32; if target is near .cldb end or in .data -> quiz_active
+            // Resolve disp32; if target is in .data -> quiz_active
+            // (include C7 05 — a register-form-only scanner will miss the write)
         } // namespace quiz_active
 
 
         // ====================================================================
         // VM Detection — CPUID-based hypervisor check
-        // v2.1.3.09: FUNC_RVA = 0x23E7
         // ====================================================================
         namespace vm_detection {
             struct CpuidHypervisorOutput {
@@ -123,23 +121,6 @@ namespace respondus_offsets {
                 XEN          = 0x6000603,  // "XenVMMXenVMM"
                 KVM          = 0x6000603,  // "KVMKVMKVM"
             };
-
-            constexpr uint32_t FUNC_RVA = 0x23E7;
-            constexpr uint8_t SIG16[] = {
-                0x8D, 0x7D, 0xDC, 0x53, 0x0F, 0xA2, 0x8B, 0xF3,
-                0x5B, 0x90, 0x89, 0x07, 0x89, 0x77, 0x04, 0x89
-            };
-            constexpr uint8_t SIG32[] = {
-                0x8D, 0x7D, 0xDC, 0x53, 0x0F, 0xA2, 0x8B, 0xF3,
-                0x5B, 0x90, 0x89, 0x07, 0x89, 0x77, 0x04, 0x89,
-                0x4F, 0x08, 0x33, 0xC9, 0x89, 0x57, 0x0C, 0x8B,
-                0x45, 0xDC, 0x8B, 0x7D, 0xE0, 0x89, 0x45, 0xF4
-            };
-
-            constexpr uint32_t CPUID_VENDOR   = 0x23EB;  // CPUID 0x40000000
-            constexpr uint32_t CPUID_BRAND    = 0x2427;  // CPUID 0x40000001
-            constexpr uint32_t CPUID_FEATURE  = 0x249F;  // CPUID 0x40000002
-            constexpr uint32_t RDTSC_CHECK    = 0x2516;  // RDTSC timing check
         } // namespace vm_detection
 
 
@@ -147,35 +128,21 @@ namespace respondus_offsets {
         // Anti-Debug — ICEBP instructions (opcode 0xF1)
         // ====================================================================
         namespace anti_debug {
-            constexpr uint32_t ICEBP_1 = 0x94;    // Inside CLDBDoSomeOtherStuff
-            constexpr uint32_t ICEBP_2 = 0x1F97;  // Mid-function trap
-            constexpr uint32_t ICEBP_3 = 0x28C9;  // Before VM detection function
-
             constexpr uint8_t ICEBP_OPCODE = 0xF1;
             constexpr uint8_t NOP_OPCODE   = 0x90;
 
-            // Containing function signatures for version-proof finding:
-            // ICEBP_1: inside export CLDBDoSomeOtherStuff (+0x1000)
-            // ICEBP_2: LDB+0x1F10 — SIG: 55 8B EC 8B 45 08 56 8B 48 3C 03 C8 0F B7 41 14
-            // ICEBP_3: LDB+0x28AA — SIG: 55 8B EC FF 75 08 FF 15 48 E0 95 70 85 C0 74 11
+            // Confirmed trap site (x64 build, scan ICEBP traps for others):
+            // LDB+0x113A — inside export CLDBDoSomeOtherStuff (+0x1000)
         } // namespace anti_debug
 
 
         // ====================================================================
         // DLL Exports — called by LockDownBrowser.exe
-        // Returns bitmask on v2.1.3.09; same signature on v2.1.5.00 but RVAs differ.
-        // v2.1.5.00: CLDBDoSomeOtherStuff=0x1000, CLDBDoSomeOtherStuffs=0x10E0,
+        // v2.1.6.00: CLDBDoSomeOtherStuff=0x1000, CLDBDoSomeOtherStuffs=0x10E0,
         //             CLDBDoSomeStuff=0x1110, CLDBDoYetMoreStuff=0x1330
         // ====================================================================
         namespace exports {
-            enum class FunctionsV1 : uint32_t {  // v2.1.3.09
-                CLDBDoSomeOtherStuff  = 0x1000,
-                CLDBDoSomeOtherStuffs = 0x10B0,
-                CLDBDoSomeStuff       = 0x10E0,
-                CLDBDoYetMoreStuff    = 0x12A0,
-            };
-
-            enum class FunctionsV2 : uint32_t {  // v2.1.5.00
+            enum class Functions : uint32_t {  // v2.1.6.00
                 CLDBDoSomeOtherStuff  = 0x1000,
                 CLDBDoSomeOtherStuffs = 0x10E0,
                 CLDBDoSomeStuff       = 0x1110,
@@ -191,37 +158,30 @@ namespace respondus_offsets {
 
 
         // ====================================================================
-        // SetWindowsHookEx Call Sites — 21 total (v2.1.3.09)
-        // v2.1.5.00: verify dynamically with IAT scan
+        // Keyboard Hook Procedures (WH_KEYBOARD_LL)
         // ====================================================================
-        namespace hook_callsites {
-            constexpr uint32_t SETHOOK_CALL_0  = 0x100E;
-            constexpr uint32_t SETHOOK_CALL_1  = 0x107B;
-            constexpr uint32_t SETHOOK_CALL_2  = 0x1250;
-            constexpr uint32_t SETHOOK_CALL_3  = 0x12AD;
-            constexpr uint32_t SETHOOK_CALL_4  = 0x12DE;
-            constexpr uint32_t SETHOOK_CALL_5  = 0x1396;
-            constexpr uint32_t SETHOOK_CALL_6  = 0x1411;
-            constexpr uint32_t SETHOOK_CALL_7  = 0x1500;
-            constexpr uint32_t SETHOOK_CALL_8  = 0x15B7;
-            constexpr uint32_t SETHOOK_CALL_9  = 0x1661;
-            constexpr uint32_t SETHOOK_CALL_10 = 0x1746;
-            constexpr uint32_t SETHOOK_CALL_11 = 0x1826;
-            constexpr uint32_t SETHOOK_CALL_12 = 0x1857;
-            constexpr uint32_t SETHOOK_CALL_13 = 0x18C0;
-            constexpr uint32_t SETHOOK_CALL_14 = 0x18E8;
-            constexpr uint32_t SETHOOK_CALL_15 = 0x1969;
-            constexpr uint32_t SETHOOK_CALL_16 = 0x198F;
-            constexpr uint32_t SETHOOK_CALL_17 = 0x19B8;
-            constexpr uint32_t SETHOOK_CALL_18 = 0x1A59;
-            constexpr uint32_t SETHOOK_CALL_19 = 0x1A7F;
-            constexpr uint32_t SETHOOK_CALL_20 = 0x1AAD;
-        } // namespace hook_callsites
-
-
         namespace hook_procedures {
-            constexpr uint32_t KEYBOARD_HOOK_PROC = 0x13D0;
+            constexpr uint32_t KEYBOARD_HOOK_PROC_1 = 0x13A0;  // 249 B
+            constexpr uint32_t KEYBOARD_HOOK_PROC_2 = 0x162C;  // 187 B (tail of 0x14A0)
+            constexpr uint32_t KEYBOARD_HOOK_PROC_3 = 0x18E0;  // 256 B
         } // namespace hook_procedures
+
+
+        // ====================================================================
+        // VK_F12 — not blocked in 2.1.6.0.0 (HookDLL)
+        // The F12 key (Chrome DevTools) block is absent from the 3 keyboard
+        // hook procs. Byte pattern "cmp ecx, 0x7b" (83 F9 7B) has 0
+        // occurrences in .text.
+        // ====================================================================
+        namespace vk_f12 {
+            constexpr uint32_t HOOK_PROC_1 = 0x13A0;  // WH_KEYBOARD_LL
+            constexpr uint32_t HOOK_PROC_2 = 0x162C;  // WH_KEYBOARD_LL
+            constexpr uint32_t HOOK_PROC_3 = 0x18E0;  // WH_KEYBOARD_LL
+
+            // The (absent) instruction pattern: cmp ecx, 0x7b (VK_F12)
+            constexpr uint8_t CMP_VK_F12_OPCODE = 0x83;
+            constexpr uint8_t CMP_VK_F12_OPERAND = 0x7B;
+        } // namespace vk_f12
 
     } // namespace lockdownbrowser_dll
 
@@ -270,37 +230,63 @@ namespace respondus_offsets {
         constexpr wchar_t SERVICE_NAME[]    = L"LockDownService215";
         constexpr uint32_t ALTITUDE         = 47777;
 
-        // User-Mode -> Kernel command codes (via FilterSendMessage)
+        // User-Mode -> Kernel opcodes (via the filter port; arrive at the port
+        // dispatcher FUN_1400015c0). All read from the 2.1.6.0.0 dispatcher.
+        // "reply" = the first dword written to the output buffer.
+        // Protocol detail: offsets/ioctl.md
         enum class CommandCode : uint32_t {
-            PING              = 0x00000001,  // Heartbeat / status
-            ADD_BLOCKLIST     = 0x00000010,  // Add process to blocklist
-            REMOVE_BLOCKLIST  = 0x00000011,  // Remove process from blocklist
-            QUERY_PROCESSES   = 0x00000012,  // Query tracked processes
-            TERMINATE         = 0x00000013,  // Terminate a process by PID
-            VERIFY_SIGNATURE  = 0x00000014,  // Validate binary signature
-            ENCRYPT           = 0x00000020,  // AES-CBC encrypt
-            DECRYPT           = 0x00000021,  // AES-CBC decrypt
-            QUIZ_ACTIVE       = 0x00000030,  // Get/set quiz active state
-            SET_HOOKS         = 0x00000031,  // Enable/disable hooks
-            GET_STATUS        = 0x00000032,  // Get full status bitmask
-            BLOCK_INPUT       = 0x00000033,  // Block specific input types
-            BLACKLIST_WINDOW  = 0x00000040,  // Add window class to blacklist
-            EXAM_URL          = 0x00000041,  // Register exam URL pattern
+            CRYPTO_OUT         = 0x00,  // BCrypt op on the output buffer directly
+            CRYPTO_IN          = 0x01,  // BCrypt op on caller data (param_2+2, param_2[1])
+            ENABLE_ENCRYPTION  = 0x02,  // on success sets the byte at ApDriver+0x90
+            ENCRYPTED_REQUEST  = 0x03,  // requires encryption on (else 0xC0000010); vtable dispatch
+            ENUM_A             = 0x04,  // reply 0x05 + count, records of 0xf0c bytes
+            ENUM_B             = 0x06,  // reply 0x07 + count, records of 0x710 bytes
+            ENUM_C             = 0x08,  // reply 0x09 + dword(obj+0x318) + records of 0x710 bytes
+            ENUM_D             = 0x0c,  // reply 0x0E + count, 4-byte records
+            ENUM_E             = 0x0d,  // reply 0x0F + count, 4-byte records
+            STATUS_TWO_DWORDS  = 0x0f,  // reply 0x10 + FUN_140009140(mon,0) + FUN_140009140(mon,1)
+            GET_VERSION        = 0x11,  // reply 0x12 + the two version qwords at ApDriver+0x700/+0x708
+            SET_STATE_FLAG     = 0x13,  // FltAcquireResourceExclusive; *(char*)(ApDriver+0x91) = (char)param_2[1]; no reply
+            WHOLE_PROCESS_SCAN = 0x14,  // PID + thread-ID array; requires param_3 >= 0x10; 0xC0000184 when
+                                        // DAT_14000f090 == 0; calls FUN_140008fe0; reply 0x15 + verdict.
+                                        // For each thread: ZwQueryInformationThread(Win32StartAddress) ->
+                                        // ZwQueryVirtualMemory(MemoryBasicInformation); if the start address
+                                        // does not resolve to a file-backed image section -> verdict 3
+                                        // (fileless / injected code). Per-thread cache at +0xD0.
+        };
+        // Unhandled opcodes (0x05, 0x07, 0x09-0x0b, 0x0e, 0x10, 0x12, 0x15+) fall
+        // through to `return 0` = STATUS_SUCCESS with NO output written. A caller
+        // cannot distinguish "unsupported" from "succeeded silently" by status alone.
+
+        // Dispatcher input validation, read from FUN_1400015c0
+        constexpr uint32_t DISPATCHER_MAX_IRQL        = 2;          // KeGetCurrentIrql() > 2 -> 0xC0000184
+        constexpr uint32_t STATUS_INVALID_PARAMETER   = 0xC000000D; // param_6 == NULL or param_4 == NULL
+        constexpr uint32_t STATUS_INVALID_BUFFER_SIZE = 0xC0000206; // param_3 < 4, or param_2 == NULL
+        constexpr uint32_t STATUS_BUFFER_TOO_SMALL    = 0xC0000023; // param_5 < required size
+        constexpr uint32_t STATUS_INVALID_DEVICE_STATE_NT = 0xC0000184;
+        constexpr uint32_t STATUS_ACCESS_DENIED_NT        = 0xC0000022;
+
+        // When the port is in encrypted mode, the reply STRUCT sits after a 0x108-byte
+        // (264-byte) envelope and *param_6 = required + 0x108. A client that assumes
+        // the reply starts at offset 0 will misparse every encrypted reply.
+        constexpr uint32_t ENCRYPTED_REPLY_PREFIX = 0x108;
+
+        // Reply subtypes observed as the first dword of the output buffer
+        enum class ReplySubtype : uint32_t {
+            ENUM_A_REPLY      = 0x05,
+            ENUM_B_REPLY      = 0x07,
+            ENUM_C_REPLY      = 0x09,
+            ENUM_D_REPLY      = 0x0E,
+            ENUM_E_REPLY      = 0x0F,
+            STATUS_REPLY      = 0x10,
+            VERSION_REPLY     = 0x12,  // reply to GET_VERSION (opcode 0x11)
+            FILELESS_SCAN     = 0x15,  // reply to WHOLE_PROCESS_SCAN (opcode 0x14)
         };
 
-        // Kernel -> User-Mode notification event types (via FltSendMessage)
-        enum class NotifyEvent : uint32_t {
-            PROCESS_CREATE        = 0x001,
-            PROCESS_TERMINATE     = 0x002,
-            THREAD_CREATE         = 0x003,
-            IMAGE_LOAD            = 0x004,
-            INTEGRITY_VIOLATION   = 0x005,
-            TAMPER_DETECTED       = 0x006,
-            DEBUGGER_DETECTED     = 0x007,
-            BLOCKED_PROCESS       = 0x008,
-            QUIZ_STATE_CHANGE     = 0x009,
-            INPUT_VIOLATION       = 0x00A,
-        };
+        // Kernel -> User-Mode notification path.
+        // The driver exposes CommunicationPortBase::sendMessage (FltSendMessage),
+        // so a kernel->user notification path exists, but its message format is
+        // not documented here (requires dynamic verification).
 
         // Driver crypto subsystem (BCrypt AES-256-CBC + RSA-2048)
         namespace crypto {
@@ -320,8 +306,8 @@ namespace respondus_offsets {
 
 
     // ========================================================================
-    // Module: LockDownBrowser.exe (x64, ~20MB, Chromium 142 based)
-    // v2.1.5.00: 20,669,376 bytes, no ASLR/DEP/CFG
+    // Module: LockDownBrowser.exe (x64, ~20MB, Chromium 150 based)
+    // v2.1.6.00: 20,827,072 bytes, 19,538 functions
     // No .cldb accesses in EXE — all flag manipulation is in LDB.dll.
     // ========================================================================
     namespace lockdownbrowser_exe {
@@ -355,7 +341,7 @@ namespace respondus_offsets {
     namespace driver_analysis {
         constexpr wchar_t DRIVER_NAME[]       = L"LockDownService215.sys";
         constexpr wchar_t DRIVER_PATH[]       = L"\\SystemRoot\\System32\\drivers\\LockDownService215.sys";
-        constexpr uint32_t EXPECTED_SIZE      = 62720;  // ~61KB
+        constexpr uint32_t EXPECTED_SIZE      = 71944;  // ~70KB
         constexpr uint32_t ALTITUDE           = 47777;
         constexpr wchar_t LOAD_GROUP[]        = L"FSFilter Bottom";
 
@@ -367,6 +353,14 @@ namespace respondus_offsets {
             constexpr wchar_t CODE_INTEGRITY[]      = L"CiValidateFileObject";
             constexpr wchar_t CROSS_PROCESS_ATTACH[] = L"KeStackAttachProcess";
             constexpr wchar_t DYNAMIC_RESOLVER[]    = L"MmGetSystemRoutineAddress";
+            // DriverLogger imports
+            constexpr wchar_t ZW_CREATE_FILE[]     = L"ZwCreateFile";
+            constexpr wchar_t ZW_WRITE_FILE[]      = L"ZwWriteFile";
+            constexpr wchar_t ZW_DELETE_FILE[]     = L"ZwDeleteFile";
+            constexpr wchar_t ZW_QUERY_DIR_FILE[]  = L"ZwQueryDirectoryFile";
+            constexpr wchar_t EX_SYS_TIME_LOCAL[]  = L"ExSystemTimeToLocalTime";
+            constexpr wchar_t RTL_TIME_FIELDS[]    = L"RtlTimeToTimeFields";
+            constexpr wchar_t FLT_ACQUIRE_RES[]    = L"FltAcquireResourceShared";
         }
 
         // Internal class names (found as ASCII strings in driver)
@@ -382,6 +376,15 @@ namespace respondus_offsets {
             constexpr wchar_t CMD_WRAPPER[]        = L"CmdWrapper";
             constexpr wchar_t DWM_RESOLVER[]       = L"DwmImageResolver";
             constexpr wchar_t BROWSER_RESOLVER[]   = L"BrowserImageResolver";
+            // New in 2.1.6.0.0
+            constexpr wchar_t DRIVER_LOGGER[]      = L"DriverLogger";
+        }
+
+        // Connection gate — only the browser process can connect;
+        // PID mismatch -> forced disconnect
+        namespace port_gate {
+            constexpr uint32_t STATUS_INVALID_DEVICE_STATE = 0xC0000184;  // No browser PID known
+            constexpr uint32_t STATUS_ACCESS_DENIED        = 0xC0000022;  // PID mismatch
         }
     } // namespace driver_analysis
 
@@ -389,15 +392,11 @@ namespace respondus_offsets {
     // Convenience aliases
     namespace cldb     = lockdownbrowser_dll::cldb;
     namespace exports  = lockdownbrowser_dll::exports;
-    namespace hooks    = lockdownbrowser_dll::hook_callsites;
     namespace kbproc   = lockdownbrowser_dll::hook_procedures;
-    namespace lset     = lockdownbrowser_dll::cldb::setters_lockdown;
-    namespace pset     = lockdownbrowser_dll::cldb::setters_proctoring;
-    namespace eset     = lockdownbrowser_dll::cldb::setters_exit;
-    namespace cread    = lockdownbrowser_dll::cldb::readers;
     namespace vmdet    = lockdownbrowser_dll::vm_detection;
     namespace adbg     = lockdownbrowser_dll::anti_debug;
     namespace quiz     = lockdownbrowser_dll::quiz_active;
+    namespace vkf12    = lockdownbrowser_dll::vk_f12;
     namespace rldb     = rldb_commands;
     namespace ioctl    = driver_ioctl;
     namespace drv      = driver_analysis;
