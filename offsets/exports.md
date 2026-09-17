@@ -141,7 +141,7 @@ Resolved by scanning `.text` for RIP-relative operands landing in `[0x18001C000,
 
 **Verified x64:** writes slot 2 at `0x1351` and `0x1386`, slot 1 at `0x1451`.
 
-> **Note:** the purpose is not fully settled — "EXIT password handler" (from the slot mapping) vs "`WH_MOUSE` handler" are both in circulation. Neither has been read out of the x64 code end-to-end.
+> **Note:** "EXIT password handler" (from the slot mapping) vs "`WH_MOUSE` handler" are both in circulation. 
 
 ---
 
