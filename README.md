@@ -1,13 +1,13 @@
 # Respondus LockDown Browser — Offsets, Signatures & Analysis
 
-Latest offsets, IOCTL protocol, RLDB commands, and analysis scripts. Updated with every version.
+Latest offsets, IOCTL protocol, RLDB commands, and analysis. Updated with every version.
 
 **Latest versions:**
-- EXE: `2.1.5.00` (Chrome/142.0.7444.135)
+- EXE: `2.1.6.00` (Chrome/150.0.0.0)
 - DLL: `23.10.31.1` (LDB.dll)
-- Driver: `2.15.0.1` (LockDownService215.sys — by ApriorIT)
+- Driver: `2.16.0.0` (LockDownService215.sys — by ApriorIT)
 
-**Updated:** 2026-07-02
+**Updated:** 2026-09-16
 
 ---
 
@@ -18,37 +18,37 @@ Latest offsets, IOCTL protocol, RLDB commands, and analysis scripts. Updated wit
 | File | Description |
 | :--- | :--- |
 | `offsets.hpp` | C++ header with all offsets, sigscans, IOCTL codes, RLDB codes, quiz_active, driver analysis constants |
-| `exports.md` | DLL export function map (both v2.1.3.09 & v2.1.5.00) |
+| `exports.md` | DLL export function map |
 | `process_blacklist.hpp` | 3020+ blacklisted process entries in UTF-16LE |
-| `ioctl.md` | Driver IOCTL communication protocol specification |
-| `rldb_commands.md` | RLDB URL command reference (25+ commands documented) |
+| `ioctl.md` | Driver communication protocol specification (filter port opcodes read from the dispatcher) |
+| `rldb_commands.md` | RLDB URL command reference (57 commands documented) |
 | `quiz_active.md` | Quiz active flag analysis (user-mode and kernel-mode) |
+
 ---
 
 ## Target: LockDownBrowser.dll (LDB.dll)
 
 | Target | Type |
 | :--- | :--- |
-| `.cldb` flag setters (LOCKDOWN/PROCTORING/EXIT) | Static RVA + Sigscan |
-| **quiz_active flag** (new) | Static RVA near `.cldb` + Sigscan |
-| DLL exports (4 functions) | Static RVA + Sigscan |
-| SetWindowsHookEx call sites (21 total) | Static RVA + Sigscan |
-| Keyboard hook callback procedure | Static RVA |
+| `.cldb` flag slots (LOCKDOWN/PROCTORING/EXIT) | Static RVA + 32 verified x64 access sites |
+| DLL exports (4 functions, ordinals 1-4) | Static RVA + Sigscan |
+| Keyboard hook callback procedures | Static RVA |
+| **VK_F12 block (removed in 2.1.6.0.0)** | Byte pattern `83 F9 7B` — 0 occurrences |
 | Action strings and dispatcher codes | Static RVA |
-| **RLDB command handlers** (new) | URL parameter → condition flag mapping |
+| **RLDB command handlers** | URL parameter → condition flag mapping |
 
 ### Logic Patterns
 
 * **Find `.cldb` section:** 
-  `Walk PE sections` → `match name .cldb` → `get VirtualAddress`
-* **Find flag setters:** 
-  `Scan .text for 89 0D / 89 3D / C7 05` → `resolve disp32` → `check if target falls in .cldb range`
+  `Walk PE sections` → `match name .cldb` → `get VirtualAddress` (expect `0x1C000` on x64)
+* **Find flag sites:** 
+  `Scan .text for RIP-relative 48 89 / 48 8B / 48 83 3D / 48 39` → `resolve disp32 (target = insn_addr + insn_len + disp)` → `check if target falls in .cldb range`
 * **Find quiz_active:** 
-  `Scan .text for C7 05 [disp32] 01/00` → `resolve disp32` → `check if target near .cldb end`
+  `Scan .text for C7 05 [disp32] 01/00` → `resolve disp32` → `check if target in .data`
 * **Find exports:** 
   `Parse PE export directory` → `match ?CLDBDo prefix string`
 * **Find hook call sites:** 
-  `Scan .text for FF 15` → `resolve IAT` → `check if user32!SetWindowsHookEx`
+  `Scan .text for FF 15` → `resolve IAT` → `check if user32!SetWindowsHookExA`
 
 ---
 
@@ -56,13 +56,14 @@ Latest offsets, IOCTL protocol, RLDB commands, and analysis scripts. Updated wit
 
 | Target | Type |
 | :--- | :--- |
-| **Filter Communication Port** | IOCTL codes + message protocol |
-| **DeviceIoControl commands** | Reconstructed command codes |
-| **Kernel notifications** | Event types (process/thread/image/quiz) |
+| **Filter Communication Port** (`\ApDriverPort`) | Opcodes read from the dispatcher + reply framing |
+| **Connection gate** | Strict PID allowlist, forced disconnect on mismatch |
+| **Kernel notifications** | PsSetCreateProcessNotifyRoutineEx, PsSetCreateThreadNotifyRoutine, PsSetLoadImageNotifyRoutine |
 | **Crypto subsystem** | BCrypt AES-256-CBC + RSA-2048 |
-| **Process/thread/image callbacks** | PsSetCreateProcessNotifyRoutineEx, etc. |
 | **Code integrity** | CiValidateFileObject signature validation |
-| **KDMapper detection** | Limited, heard people say "kdmapper is dtc"; it isnt |
+| **Overlay detection** | DwmImageResolver, BrowserImageResolver |
+| **DriverLogger (new)** | Kernel-side logging to `C:\Users\Public\Documents\` |
+| **Whole-process fileless scan (new)** | Opcode `0x14` — batch thread verification |
 
 See `ioctl.md` for complete protocol documentation.
 
@@ -75,56 +76,47 @@ See `ioctl.md` for complete protocol documentation.
 | Window class blacklist | Static strings |
 | Process blacklist (3020+ entries) | Heap-allocated, UTF-16LE strings |
 | Registry flags (`active`, `tvc`, `tvd`) | `HKCU\SOFTWARE\Respondus\` |
-| Exam URL triggers | Obfuscated at rest |
 | **RLDB command strings** | Embedded in `.rdata` |
-| Driver communication | `CreateFileW(\\.\LockDownService)` + `DeviceIoControl` |
+| **AKD detection subsystem (new)** | Encrypted driver channel via `akd_mediator` |
+| **CheckDetours hook detection** | JMP rel32 (`0xE9`) test confirmed by emulation |
+| **Client-side driver install (new)** | `FilterLoad` + `SetupAPI` |
+| Driver communication | `CreateFileW` + `DeviceIoControl`, filtered via `fltlib` |
 
 ---
 
 ## New in This Update
 
-### 1. IOCTL Communication Protocol (`ioctl.md`)
-Complete specification of the driver communication architecture:
-- Filter Communication Port (`FltCreateCommunicationPort`) — primary encrypted channel
-- DeviceIoControl (`\\.\LockDownService`) — secondary channel
-- 14+ command codes reconstructed from binary analysis
-- 10 kernel notification event types
-- Crypto subsystem (AES-256-CBC + RSA-2048)
+### 1. DriverLogger (`ioctl.md` §11)
+Kernel-side logging subsystem:
+- Writes timestamped lines to `\??\C:\Users\Public\Documents\<YYYY-MM-DD>.log`
+- Six new functions; source of all 12 new driver imports
+- Filename is date-derived with numeric-suffix rotation
+- Line prefix `[YYYY-MM-DD HH:MM:SS]`
 
-### 2. Quiz Active Flag (`quiz_active.md`)
-The master gating flag that controls all monitoring:
-- User-mode location (near `.cldb` section in LDB.dll)
-- Kernel-mode tracking (via `CMD_QUIZ_ACTIVE = 0x00000030`)
-- Registry persistence (`HKCU\...\active`)
-- 4 state values (INACTIVE, ACTIVE, PROCTORING, LOCKED)
-- Sigscan patterns for dynamic discovery
+### 2. Whole-Process Fileless Scan (opcode `0x14`)
+User mode supplies a PID plus a thread-ID array and gets one verdict:
+- Per thread: `ZwQueryInformationThread(Win32StartAddress)` → `ZwQueryVirtualMemory(MemoryBasicInformation)`
+- If the start address does not resolve to a file-backed image section → verdict 3 (fileless/injected code)
+- Per-thread state cache at `+0xD0` avoids re-probing
+- Driven by the EXE's AKD subsystem for both the browser process and DWM
 
-### 3. RLDB Commands (`rldb_commands.md`)
-Complete command reference (25+ commands):
-- Security/detection commands (rldbdetect, rldbvm, rldbkh, rldbfocus, etc.)
-- Quiz state commands (rldbqn)
-- Input control commands (rldbprt, rldbpl, rldbsp, etc.)
-- Process/application control commands (rldbbl, rldbwl, etc.)
-- Condition flag → action string mapping
-- IAT dispatcher mechanism (PUSH 13/PUSH 7)
+### 3. AKD Detection Subsystem (EXE)
+New usermode detection layer talking to the driver over an encrypted filter-port channel:
+- `GlobalSecurityObject::AKD_DetectReflectionLoad`
+- `AKD_DetectThreadHacks` (`m_browser` / `m_dwm` flags)
+- `akd_mediator.connect()` + `dllMonitor->start()`
+- Includes a DWM integrity check with an explicit refusal path
 
-### 4. Analysis Scripts (`analysis/`)
-- **driver_analyzer.ps1** — Interactive driver analysis (status, registry, filter manager, device handles, string analysis, vulnerability assessment)
-- **offset_scanner.py** — Automated PE scanning for all offset types with JSON output and patch generation
-- **rldb_cmd_monitor.ps1** — Real-time monitoring (process, driver, hooks, registry, blacklist)
+### 4. Three New Port Opcodes (`ioctl.md`)
+- `0x11` — version query (reply `0x12` + two version qwords)
+- `0x13` — state flag set (writes the state byte at `ApDriver+0x91`)
+- `0x14` — whole-process fileless scan (reply `0x15` + verdict)
 
----
+### 5. VK_F12 No Longer Blocked (HookDLL)
+The three `WH_KEYBOARD_LL` hook procedures no longer contain the `cmp ecx, 0x7b` (VK_F12) arm that swallowed F12 key-down and key-up globally. Byte pattern `83 F9 7B` went from 3 occurrences to 0. Whether the block was relocated (CEF accelerator path / obfuscated EXE code) or dropped entirely needs a runtime test.
 
-## Version Differences
-
-| Component | v2.1.3.09 (32-bit) | v2.1.5.00 (x64) |
-|-----------|-------------------|-----------------|
-| LDB.dll | 32-bit | x64 (PE32+) |
-| CLDBDoSomeOtherStuffs | `+0x10B0` | `+0x10E0` |
-| CLDBDoSomeStuff | `+0x10E0` | `+0x1110` |
-| CLDBDoYetMoreStuff | `+0x12A0` | `+0x1330` |
-| Driver version | — | `2.15.0.1` |
-| Chrome base | 129 | 142 |
+### 6. Client-Side Driver Installation (EXE)
+Newly imports `FLTLIB.DLL: FilterLoad`, four `SETUPAPI.dll` calls, `KERNEL32: VirtualQueryEx`, plus a `SeLoadDriverPrivilege` string.
 
 ---
 
